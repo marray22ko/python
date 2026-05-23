@@ -12,7 +12,7 @@ st.title("💹 가치투자 스캐너 (골든크로스 + 재무지표 필터)")
 # 사이드바: 필터 설정
 st.sidebar.header("📊 범위 설정 필터")
 
-per_min, per_max = st.sidebar.slider("PER 범위", 0.0, 100.0, (0.0, 20.0))
+per_min, per_max = st.sidebar.slider("PER 범위", -50.0, 100.0, (-10.0, 20.0))
 pbr_min, pbr_max = st.sidebar.slider("PBR 범위", 0.0, 10.0, (0.0, 1.5))
 roe_min, roe_max = st.sidebar.slider("ROE (%) 범위", 0.0, 50.0, (5.0, 30.0))
 debt_min, debt_max = st.sidebar.slider("부채비율 (%) 범위", 0.0, 500.0, (0.0, 150.0))
