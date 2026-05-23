@@ -11,18 +11,22 @@ per_max = st.number_input("최대 PER", value=20.0)
 pbr_max = st.number_input("최대 PBR", value=3.0)
 roe_min = st.number_input("최소 ROE", value=0.15)
 
-# 🔹 KRX에서 KOSPI200 종목 리스트 가져오기
-@st.cache_data  # Streamlit 캐싱: 데이터 재사용
+@st.cache_data
 def load_kospi200():
     url = "http://data.krx.co.kr/comm/fileDn/download_csv/download_csv.cmd?code=200"
     res = requests.get(url)
-    kospi200_df = pd.read_csv(io.BytesIO(res.content), encoding="euc-kr")
-    kospi200_df["종목코드"] = kospi200_df["종목코드"].apply(lambda x: str(x).zfill(6))
-    return [code + ".KS" for code in kospi200_df["종목코드"]]
+    encodings = ["utf-8-sig", "cp949", "euc-kr"]
+    for enc in encodings:
+        try:
+            kospi200_df = pd.read_csv(io.BytesIO(res.content), encoding=enc)
+            kospi200_df["종목코드"] = kospi200_df["종목코드"].apply(lambda x: str(x).zfill(6))
+            return [code + ".KS" for code in kospi200_df["종목코드"]]
+        except Exception:
+            continue
+    raise ValueError("CSV 인코딩을 해석할 수 없습니다.")
 
 kospi200_tickers = load_kospi200()
 
-# 🔹 종목 데이터 가져오기 (캐싱)
 @st.cache_data
 def fetch_data(tickers, delay=1):
     data = {}
@@ -34,14 +38,13 @@ def fetch_data(tickers, delay=1):
                 "PBR": info.get("priceToBook", None),
                 "ROE": info.get("returnOnEquity", None)
             }
-            time.sleep(delay)  # Rate limit 방지
-        except Exception as e:
+            time.sleep(delay)
+        except Exception:
             data[t] = {"PER": None, "PBR": None, "ROE": None}
     return pd.DataFrame(data).T
 
 if st.button("조건에 맞는 KOSPI200 종목 찾기"):
     df = fetch_data(kospi200_tickers, delay=0.5).dropna()
-
     if not df.empty:
         filtered = df[
             (df["PER"] < per_max) &
