@@ -10,5 +10,5 @@ if st.button("조건 필터형 퀀트 검색기 열기"):
 if st.button("가치투자 분석 열기(나스닥)"):
     st.markdown('<a href="https://python-gmzcymqjhkdah3aamk2uaa.streamlit.app/" target="_blank">👉 이동하기</a>', unsafe_allow_html=True)
 
-if st.button("가치투자 분석 열기(코스닥)"):
-    st.markdown('<a href="https://python-gmzcymqjhkdah3aamk2uaa.streamlit.app/" target="_blank">👉 이동하기</a>', unsafe_allow_html=True)
+if st.button("가치투자 분석 열기(코스피)"):
+    st.markdown('<a href="https://python-blbefhy7qy7qfualjmrts9.streamlit.app/" target="_blank">👉 이동하기</a>', unsafe_allow_html=True)
