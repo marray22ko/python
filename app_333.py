@@ -1,67 +1,50 @@
 import yfinance as yf
 import pandas as pd
 import streamlit as st
+import time
+import requests
 
 st.title("퀀트 투자 조건 검색기 (KOSPI 200 전체)")
 
-# 조건 입력
 per_max = st.number_input("최대 PER", value=20.0)
 pbr_max = st.number_input("최대 PBR", value=3.0)
 roe_min = st.number_input("최소 ROE", value=0.15)
 
-# 코스피 200 종목 리스트 (예시: 주요 티커, 실제로는 전체 리스트를 넣어야 함)
-kospi200 = [
-    "005930.KQ",  # 삼성전자
-    "000660.KQ",  # SK하이닉스
-    "035420.KQ",  # NAVER
-    "051910.KQ",  # LG화학
-    "207940.KQ",  # 삼성바이오로직스
-    "006400.KQ",  # 삼성SDI
-    "068270.KQ",  # 셀트리온
-    "012330.KQ",  # 현대모비스
-    "005380.KQ",  # 현대차
-    "000270.KQ",  # 기아
-    "090430.KQ",  # 아모레퍼시픽
-    "034730.KQ",  # SK
-    "017670.KQ",  # SK텔레콤
-    "036570.KQ",  # 엔씨소프트
-    "105560.KQ",  # KB금융
-    "055550.KQ",  # 신한지주
-    "033780.KQ",  # KT&G
-    "003550.KQ",  # LG
-    "251270.KQ",  # 넷마블
-    "086790.KQ",  # 하나금융지주
-    # … 실제로는 KOSPI 200 전체 티커를 리스트에 추가해야 함
-]
+# 🔹 KRX에서 KOSPI200 종목 리스트 가져오기
+url = "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13"
+kospi200_df = pd.read_html(requests.get(url).text)[0]
+kospi200_df["종목코드"] = kospi200_df["종목코드"].apply(lambda x: str(x).zfill(6))
+kospi200_tickers = kospi200_df["종목코드"].tolist()
+kospi200_tickers = [code + ".KS" for code in kospi200_tickers]  # 코스피 종목은 .KS
 
-# 버튼 클릭 시 실행
-if st.button("조건에 맞는 코스피 200 종목 찾기"):
+if st.button("조건에 맞는 KOSPI200 종목 찾기"):
     data = {}
-    for t in kospi200:
+    for t in kospi200_tickers:
         try:
             info = yf.Ticker(t).info
             data[t] = {
-                "PER": info.get("trailingPE"),
-                "PBR": info.get("priceToBook"),
-                "ROE": info.get("returnOnEquity")
+                "PER": info.get("trailingPE", None),
+                "PBR": info.get("priceToBook", None),
+                "ROE": info.get("returnOnEquity", None)
             }
+            time.sleep(1)  # 요청 간격 두기 (Rate limit 방지)
         except Exception as e:
             st.warning(f"{t} 데이터 불러오기 실패: {e}")
 
-    df = pd.DataFrame(data).T
+    df = pd.DataFrame(data).T.dropna()
 
-    # 조건 필터링
-    filtered = df[
-        (df["PER"] < per_max) &
-        (df["PBR"] < pbr_max) &
-        (df["ROE"] > roe_min)
-    ]
+    if not df.empty:
+        filtered = df[
+            (df["PER"] < per_max) &
+            (df["PBR"] < pbr_max) &
+            (df["ROE"] > roe_min)
+        ]
+        st.subheader("조건을 만족하는 KOSPI200 종목")
+        st.dataframe(filtered)
 
-    st.subheader("조건을 만족하는 코스피 200 종목")
-    st.dataframe(filtered)
-
-    # 선택한 종목 차트
-    if not filtered.empty:
-        chosen = st.selectbox("차트 확인할 종목 선택", filtered.index)
-        hist = yf.Ticker(chosen).history(period="6mo")
-        st.line_chart(hist["Close"])
+        if not filtered.empty:
+            chosen = st.selectbox("차트 확인할 종목 선택", filtered.index)
+            hist = yf.Ticker(chosen).history(period="6mo")
+            st.line_chart(hist["Close"])
+    else:
+        st.error("데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.")
