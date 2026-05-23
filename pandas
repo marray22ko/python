@@ -1,0 +1,14 @@
+import pandas as pd
+
+# CSV 파일 불러오기
+df = pd.read_csv(r"c:\python\상장종목.csv", encoding="cp949")
+
+# 종목코드 6자리로 맞추기
+df["단축코드"] = df["단축코드"].apply(lambda x: str(x).zfill(6))
+
+# 종목명과 코드 리스트 만들기
+codes = df["단축코드"].tolist()
+names = df["한글 종목명"].tolist()
+
+print("총 종목 수:", len(codes))
+print("예시:", names[:5], codes[:5])
