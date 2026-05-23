@@ -4,3 +4,4 @@ pykrx
 pandas
 openpyxl
 matplotlib
+lxml
