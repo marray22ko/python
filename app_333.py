@@ -1,25 +1,32 @@
 import yfinance as yf
 import pandas as pd
 import streamlit as st
-import time
 import requests
+import io
+import time
 
-st.title("퀀트 투자 조건 검색기 (KOSPI 200 전체)")
+st.title("퀀트 투자 조건 검색기 (KOSPI 200 전체, 캐싱 버전)")
 
 per_max = st.number_input("최대 PER", value=20.0)
 pbr_max = st.number_input("최대 PBR", value=3.0)
 roe_min = st.number_input("최소 ROE", value=0.15)
 
 # 🔹 KRX에서 KOSPI200 종목 리스트 가져오기
-url = "https://kind.krx.co.kr/corpgeneral/corpList.do?method=download&searchType=13"
-kospi200_df = pd.read_html(requests.get(url).text)[0]
-kospi200_df["종목코드"] = kospi200_df["종목코드"].apply(lambda x: str(x).zfill(6))
-kospi200_tickers = kospi200_df["종목코드"].tolist()
-kospi200_tickers = [code + ".KS" for code in kospi200_tickers]  # 코스피 종목은 .KS
+@st.cache_data  # Streamlit 캐싱: 데이터 재사용
+def load_kospi200():
+    url = "http://data.krx.co.kr/comm/fileDn/download_csv/download_csv.cmd?code=200"
+    res = requests.get(url)
+    kospi200_df = pd.read_csv(io.BytesIO(res.content), encoding="euc-kr")
+    kospi200_df["종목코드"] = kospi200_df["종목코드"].apply(lambda x: str(x).zfill(6))
+    return [code + ".KS" for code in kospi200_df["종목코드"]]
 
-if st.button("조건에 맞는 KOSPI200 종목 찾기"):
+kospi200_tickers = load_kospi200()
+
+# 🔹 종목 데이터 가져오기 (캐싱)
+@st.cache_data
+def fetch_data(tickers, delay=1):
     data = {}
-    for t in kospi200_tickers:
+    for t in tickers:
         try:
             info = yf.Ticker(t).info
             data[t] = {
@@ -27,11 +34,13 @@ if st.button("조건에 맞는 KOSPI200 종목 찾기"):
                 "PBR": info.get("priceToBook", None),
                 "ROE": info.get("returnOnEquity", None)
             }
-            time.sleep(1)  # 요청 간격 두기 (Rate limit 방지)
+            time.sleep(delay)  # Rate limit 방지
         except Exception as e:
-            st.warning(f"{t} 데이터 불러오기 실패: {e}")
+            data[t] = {"PER": None, "PBR": None, "ROE": None}
+    return pd.DataFrame(data).T
 
-    df = pd.DataFrame(data).T.dropna()
+if st.button("조건에 맞는 KOSPI200 종목 찾기"):
+    df = fetch_data(kospi200_tickers, delay=0.5).dropna()
 
     if not df.empty:
         filtered = df[
