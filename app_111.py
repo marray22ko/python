@@ -2,20 +2,31 @@ import yfinance as yf
 import pandas as pd
 import streamlit as st
 
-st.title("퀀트 투자 조건 검색기 (NASDAQ)")
+st.title("퀀트 투자 조건 검색기 (NASDAQ 100)")
 
 # 조건 입력
 per_max = st.number_input("최대 PER", value=20.0)
 pbr_max = st.number_input("최대 PBR", value=3.0)
 roe_min = st.number_input("최소 ROE", value=0.15)
 
-# 버튼 클릭 시 실행
-if st.button("조건에 맞는 나스닥 종목 찾기"):
-    # 나스닥 대표 종목 리스트 (원하는 대로 확장 가능)
-    tickers = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "NVDA", "META", "NFLX", "INTC", "AMD"]
+# 나스닥 100 종목 리스트 (대표 티커들)
+nasdaq_100 = [
+    "AAPL","MSFT","GOOGL","AMZN","TSLA","NVDA","META","NFLX","INTC","AMD",
+    "ADBE","CSCO","PEP","COST","AVGO","TXN","QCOM","AMAT","PYPL","SBUX",
+    "MDLZ","BKNG","LRCX","INTU","ISRG","VRTX","REGN","GILD","ADP","MU",
+    "PANW","KDP","MAR","MRNA","FTNT","KLAC","SNPS","MELI","CTAS","NXPI",
+    "ORLY","PDD","IDXX","CDNS","ROST","WDAY","TEAM","ODFL","ANSS","CHTR",
+    "CSX","AEP","XEL","PCAR","KHC","EXC","EA","VRSK","PAYX","AZN","BIIB",
+    "ALGN","DLTR","SIRI","FAST","VRSN","EBAY","SGEN","ZS","ABNB","LCID",
+    "RIVN","DOCU","OKTA","CRWD","DDOG","NTES","BIDU","JD","BKR","CEG",
+    "SPLK","MTCH","CTSH","MRVL","SWKS","EXPE","LULU","FANG","WBD","CHKP",
+    "ON","TTD","CPRT","CDW","CSGP","ODP","TTWO","FOX","FOXA","SJM","WBA"
+]
 
+# 버튼 클릭 시 실행
+if st.button("조건에 맞는 나스닥 100 종목 찾기"):
     data = {}
-    for t in tickers:
+    for t in nasdaq_100:
         try:
             info = yf.Ticker(t).info
             data[t] = {
@@ -35,7 +46,7 @@ if st.button("조건에 맞는 나스닥 종목 찾기"):
         (df["ROE"] > roe_min)
     ]
 
-    st.subheader("조건을 만족하는 나스닥 종목")
+    st.subheader("조건을 만족하는 나스닥 100 종목")
     st.dataframe(filtered)
 
     # 선택한 종목 차트
