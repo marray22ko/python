@@ -1,62 +1,39 @@
-import yfinance as yf
+import openai
 import pandas as pd
 import streamlit as st
-import requests
-import io
-import time
+import yfinance as yf
 
-st.title("퀀트 투자 조건 검색기 (KOSPI 200 전체, 캐싱 버전)")
+st.title("퀀트 투자 조건 검색기 (KOSPI 200 전체, OpenAI 버전)")
 
+# 조건 입력
 per_max = st.number_input("최대 PER", value=20.0)
 pbr_max = st.number_input("최대 PBR", value=3.0)
 roe_min = st.number_input("최소 ROE", value=0.15)
 
-@st.cache_data
-def load_kospi200():
-    url = "http://data.krx.co.kr/comm/fileDn/download_csv/download_csv.cmd?code=200"
-    res = requests.get(url)
-    encodings = ["utf-8-sig", "cp949", "euc-kr"]
-    for enc in encodings:
-        try:
-            kospi200_df = pd.read_csv(io.BytesIO(res.content), encoding=enc)
-            kospi200_df["종목코드"] = kospi200_df["종목코드"].apply(lambda x: str(x).zfill(6))
-            return [code + ".KS" for code in kospi200_df["종목코드"]]
-        except Exception:
-            continue
-    raise ValueError("CSV 인코딩을 해석할 수 없습니다.")
+# 예시 데이터프레임 (실제로는 KRX/네이버 금융에서 가져오기)
+data = {
+    "005930.KS": {"PER": 15.2, "PBR": 2.1, "ROE": 0.18},  # 삼성전자
+    "000660.KS": {"PER": 25.0, "PBR": 3.5, "ROE": 0.12},  # SK하이닉스
+    "051910.KS": {"PER": 18.0, "PBR": 2.8, "ROE": 0.20},  # LG화학
+}
+df = pd.DataFrame(data).T
 
-kospi200_tickers = load_kospi200()
+if st.button("조건에 맞는 종목 찾기"):
+    # OpenAI API 호출
+    prompt = f"""
+    아래 데이터에서 PER<{per_max}, PBR<{pbr_max}, ROE>{roe_min} 조건을 만족하는 종목만 골라줘.
+    데이터: {df.to_dict()}
+    """
+    response = openai.ChatCompletion.create(
+        model="gpt-4",
+        messages=[{"role":"user","content":prompt}]
+    )
+    result = response["choices"][0]["message"]["content"]
 
-@st.cache_data
-def fetch_data(tickers, delay=1):
-    data = {}
-    for t in tickers:
-        try:
-            info = yf.Ticker(t).info
-            data[t] = {
-                "PER": info.get("trailingPE", None),
-                "PBR": info.get("priceToBook", None),
-                "ROE": info.get("returnOnEquity", None)
-            }
-            time.sleep(delay)
-        except Exception:
-            data[t] = {"PER": None, "PBR": None, "ROE": None}
-    return pd.DataFrame(data).T
+    st.subheader("조건을 만족하는 종목")
+    st.write(result)
 
-if st.button("조건에 맞는 KOSPI200 종목 찾기"):
-    df = fetch_data(kospi200_tickers, delay=0.5).dropna()
-    if not df.empty:
-        filtered = df[
-            (df["PER"] < per_max) &
-            (df["PBR"] < pbr_max) &
-            (df["ROE"] > roe_min)
-        ]
-        st.subheader("조건을 만족하는 KOSPI200 종목")
-        st.dataframe(filtered)
-
-        if not filtered.empty:
-            chosen = st.selectbox("차트 확인할 종목 선택", filtered.index)
-            hist = yf.Ticker(chosen).history(period="6mo")
-            st.line_chart(hist["Close"])
-    else:
-        st.error("데이터를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.")
+    # 선택한 종목 차트
+    chosen = st.selectbox("차트 확인할 종목 선택", df.index)
+    hist = yf.Ticker(chosen).history(period="6mo")
+    st.line_chart(hist["Close"])
